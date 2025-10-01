@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-test
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ubuntu-test
+  template:
+    metadata:
+      labels:
+        app: ubuntu-test
+    spec:
+      containers:
+      - name: ubuntu
+        image: ubuntu
+        command: ["/bin/bash", "-c", "while true; do sleep 3600; done"]
+        env:
+        - name: http_proxy
+          value: http://envoy.default.svc.cluster.local:10000
+        - name: https_proxy
+          value: http://envoy.default.svc.cluster.local:10000
+        - name: no_proxy
+          value: "127.0.0.1,localhost"
+
