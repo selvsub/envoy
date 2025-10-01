@@ -30,6 +30,53 @@ data:
                     route:
                       cluster: dynamic_forward_proxy_cluster
               http_filters:
+              - name: envoy.filters.http.lua
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+                  inline_code: |
+                    -- Helper: convert headers to string
+                    local function headers_to_string(headers)
+                      local out = {}
+                      for key, value in pairs(headers) do
+                        table.insert(out, key .. "=" .. value)
+                      end
+                      return table.concat(out, ", ")
+                    end
+
+                    -- Request logging
+                    function envoy_on_request(handle)
+                      local headers = handle:headers()
+                      local method  = headers:get(":method") or ""
+                      local path    = headers:get(":path") or ""
+                      local host    = headers:get(":authority") or ""
+                      handle:logInfo("[LUA] >>> Request: " .. method .. " " .. path .. " Host=" .. host)
+                      handle:logInfo("[LUA] Request headers: " .. headers_to_string(headers))
+
+                      local body = handle:body()
+                      if body:length() > 0 then
+                        local data = body:getBytes(0, body:length())
+                        handle:logInfo("[LUA] Request body: " .. data)
+                      else
+                        handle:logInfo("[LUA] Request body: <empty>")
+                      end
+                    end
+
+                    -- Response logging
+                    function envoy_on_response(handle)
+                      local headers = handle:headers()
+                      local status  = headers:get(":status") or ""
+                      handle:logInfo("[LUA] <<< Response status: " .. status)
+                      handle:logInfo("[LUA] Response headers: " .. headers_to_string(headers))
+
+                      local body = handle:body()
+                      if body:length() > 0 then
+                        local data = body:getBytes(0, body:length())
+                        handle:logInfo("[LUA] Response body: " .. data)
+                      else
+                        handle:logInfo("[LUA] Response body: <empty>")
+                      end
+                    end
+
               - name: envoy.filters.http.dynamic_forward_proxy
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.dynamic_forward_proxy.v3.FilterConfig
@@ -75,6 +122,7 @@ data:
         socket_address:
           address: 0.0.0.0
           port_value: 9901
+
 ---
 apiVersion: apps/v1
 kind: Deployment
