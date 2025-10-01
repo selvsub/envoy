@@ -1,0 +1,4 @@
+kubectl create secret tls envoy-tls \
+  --cert=tls.crt \
+  --key=tls.key \
+  --namespace=default

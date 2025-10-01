@@ -1,4 +1,3 @@
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -48,7 +47,7 @@ data:
                   path: /dev/stdout
                   log_format:
                     text_format_source:
-                      inline_string: "[%START_TIME%] %REQ(:METHOD)% %REQ(:AUTHORITY)%%REQ(:PATH)% -> %UPSTREAM_HOST% %RESPONSE_CODE%\n"
+                      inline_string: "[%START_TIME%] %REQ(:METHOD)% %REQ(:AUTHORITY)% %REQ(:PATH)% -> %UPSTREAM_HOST% %RESPONSE_CODE%\n"
 
       clusters:
       - name: dynamic_forward_proxy_cluster
@@ -59,16 +58,23 @@ data:
           typed_config:
             "@type": type.googleapis.com/envoy.extensions.clusters.dynamic_forward_proxy.v3.ClusterConfig
             dns_cache_config:
-              name: dynamic_dns_cache   # must match filter
+              name: dynamic_dns_cache
               dns_lookup_family: V4_ONLY
-              host_ttl: 86400s          # must match filter
+              host_ttl: 86400s
+        transport_socket:
+          name: envoy.transport_sockets.tls
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+            common_tls_context:
+              validation_context:
+                trusted_ca:
+                  filename: "/etc/envoy/certs/ca-cert.pem"
 
     admin:
       address:
         socket_address:
           address: 0.0.0.0
           port_value: 9901
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -95,11 +101,16 @@ spec:
         volumeMounts:
         - name: envoy-config
           mountPath: /etc/envoy
+        - name: envoy-certs
+          mountPath: /etc/envoy/certs
+          readOnly: true
       volumes:
       - name: envoy-config
         configMap:
           name: envoy-config
-
+      - name: envoy-certs
+        configMap:
+          name: envoy-certs
 ---
 apiVersion: v1
 kind: Service
